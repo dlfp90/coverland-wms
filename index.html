@@ -678,6 +678,12 @@ function selectedOrders() {
   return s;
 }
 
+function pickProg(o) {
+  const n = (o.alloc || []).length; if (!n) return '<span class="muted small">-</span>';
+  const d = o.alloc.filter(a => a.done).length, q = o.alloc.reduce((t, a) => t + a.qty, 0), pq = o.alloc.reduce((t, a) => t + (a.done ? a.picked : 0), 0);
+  const pct = Math.round(d / n * 100);
+  return `<div style="min-width:110px"><div class="progress" style="margin:0 0 3px;height:7px"><i style="width:${pct}%"></i></div><span class="small">${d}/${n} lines · ${fmt(pq)}/${fmt(q)}</span></div>`;
+}
 function renderList() {
   const list = filteredOrders();
   const allSel = list.length && list.every(o => OS.sel.has(o.no));
@@ -713,10 +719,10 @@ function renderList() {
     </div>
     <div style="height:12px"></div>
     <div class="grid-box">${gridBar(list.length, OS.sel.size, 'Transaction ID')}
-      <div class="table-wrap" style="max-height:62vh"><table><thead><tr><th class="c" style="width:34px"></th><th>#</th><th>Customer</th><th>Warehouse</th><th>Transaction ID</th><th>Reference Number</th><th>Purchase Order</th><th>Status</th><th>Ship To</th><th>Created</th></tr></thead>
+      <div class="table-wrap" style="max-height:62vh"><table><thead><tr><th class="c" style="width:34px"></th><th>#</th><th>Customer</th><th>Warehouse</th><th>Transaction ID</th><th>Reference Number</th><th>Purchase Order</th><th>Status</th><th>Pick Progress</th><th>Ship To</th><th>Created</th></tr></thead>
       <tbody>${list.map((o, i) => `<tr class="click ${OS.cur && OS.cur.no === o.no ? 'sel' : ''}" data-no="${esc(o.no)}">
         <td class="c"><input type="checkbox" class="osel" data-no="${esc(o.no)}" style="width:18px;min-height:18px" ${OS.sel.has(o.no) ? 'checked' : ''}></td>
-        <td>${i + 1}</td><td>${esc((clientOf(o.client) || { name: o.client }).name.toUpperCase())}</td><td>${esc(o.warehouse)}</td><td class="mono">${esc(o.no)}</td><td>${esc(o.ref)}</td><td>${esc(o.po)}</td><td>${stBadge(o.status)}</td><td>${esc(shipTo(o))}</td><td class="small">${esc(o.created)}</td></tr>`).join('') || '<tr><td colspan="10" class="muted">조건에 맞는 주문이 없습니다.</td></tr>'}
+        <td>${i + 1}</td><td>${esc((clientOf(o.client) || { name: o.client }).name.toUpperCase())}</td><td>${esc(o.warehouse)}</td><td class="mono">${esc(o.no)}</td><td>${esc(o.ref)}</td><td>${esc(o.po)}</td><td>${stBadge(o.status)}</td><td>${pickProg(o)}</td><td>${esc(shipTo(o))}</td><td class="small">${esc(o.created)}</td></tr>`).join('') || '<tr><td colspan="11" class="muted">조건에 맞는 주문이 없습니다.</td></tr>'}
       </tbody></table></div></div></div></div>`;
   $('#fToggle').onclick = () => { OS.fOpen = shut; renderList(); };
   $('#fDateBy').onchange = e => { OS.dateBy = e.target.value; renderList(); };
