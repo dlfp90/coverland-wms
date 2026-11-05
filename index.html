@@ -273,6 +273,9 @@ tbody tr.nostock td{background:#d6e8ff}
 tbody tr.nostock.sel td{background:#b9d6fb!important}
 tbody tr.nostock:hover td{background:#c6defc}
 .nslegend{display:inline-block;width:12px;height:12px;background:#d6e8ff;border:1px solid #9cc3f5;vertical-align:-2px;margin-right:4px}
+.menu-pop.ctx{max-height:calc(100vh - 16px);overflow:auto;min-width:260px}
+.menu-pop .mtitle{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#7a8288;padding:8px 16px 2px;border-top:1px solid #eee}
+.menu-pop .mtitle:first-child{border-top:none}
 .langsw{display:flex;justify-content:flex-end;gap:4px;margin:-6px -6px 6px 0}
 .langsw button{border:1px solid #ccd;background:#fff;border-radius:999px;padding:3px 12px;font-size:.8rem;cursor:pointer;color:#555}
 .langsw button.on{background:var(--teal);border-color:var(--teal);color:#fff}
@@ -670,6 +673,7 @@ $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeM
 function closeMenus() { $$('.menu-pop').forEach(m => m.remove()); }
 /* items: [[라벨, 함수, 비활성여부], 'sep'] */
 function dropdown(btn, items) {
+  btn._items = items;
   btn.onclick = e => {
     e.stopPropagation();
     const had = btn._pop && document.body.contains(btn._pop); closeMenus(); if (had) return;
@@ -801,6 +805,7 @@ function renderList() {
   $('#fSave').onclick = () => { db.settings.view = { filter: OS.filter, fClient: OS.fClient, dateBy: OS.dateBy }; save(); toast('현재 필터를 기본 보기로 저장했어요', 'ok'); };
 
   $('#selAll').onchange = e => { list.forEach(o => e.target.checked ? OS.sel.add(o.no) : OS.sel.delete(o.no)); renderList(); };
+  $$('#paneL tr[data-no]').forEach(tr => tr.oncontextmenu = e => orderCtxMenu(e, tr.dataset.no));
   $$('.osel').forEach(c => { c.onclick = e => e.stopPropagation(); c.onchange = () => { c.checked ? OS.sel.add(c.dataset.no) : OS.sel.delete(c.dataset.no); renderList(); }; });
   $$('#paneL tr[data-no]').forEach(tr => tr.onclick = () => { openOrder(tr.dataset.no); renderList(); renderDetail(); });
   $('#oq').oninput = e => { OS.q = e.target.value; const pos = e.target.selectionStart; renderList(); const n = $('#oq'); n.focus(); n.setSelectionRange(pos, pos); };
@@ -835,6 +840,28 @@ function renderList() {
   dropdown($('#mOpt'), [['Open Orders (진행중)', () => { OS.filter = 'open'; renderList(); }], ['Closed (출고완료)', () => { OS.filter = 'closed'; renderList(); }],
     ['Cancelled (취소)', () => { OS.filter = 'cancelled'; renderList(); }], ['All (전체)', () => { OS.filter = 'all'; renderList(); }]]);
 }
+/* 주문 우클릭 메뉴: 위쪽 Manage / Create / Allocate / Batch / Documents 메뉴를 한 번에 */
+function orderCtxMenu(e, no) {
+  e.preventDefault(); e.stopPropagation();
+  if (!OS.sel.has(no)) { OS.sel.clear(); OS.sel.add(no); renderList(); }
+  closeMenus();
+  const pop = document.createElement('div'); pop.className = 'menu-pop ctx';
+  [['Manage', '#mManage'], ['Allocate', '#mAlloc'], ['Batch', '#mBatch'], ['Documents', '#mDocs'], ['Create', '#mCreate']].forEach(([title, id], gi) => {
+    const btn = $(id); if (!btn || !btn._items) return;
+    const list = typeof btn._items === 'function' ? btn._items() : btn._items;
+    pop.insertAdjacentHTML('beforeend', `<div class="mtitle">${esc(title)}</div>`);
+    list.forEach(it => {
+      if (it === 'sep') { pop.insertAdjacentHTML('beforeend', '<div class="sep"></div>'); return; }
+      const b = document.createElement('button'); b.textContent = it[0]; b.disabled = !!it[2];
+      b.onclick = ev => { ev.stopPropagation(); closeMenus(); it[1](); }; pop.appendChild(b);
+    });
+  });
+  document.body.appendChild(pop);
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  pop.style.left = Math.max(8, Math.min(e.pageX, window.scrollX + window.innerWidth - w - 8)) + 'px';
+  pop.style.top = Math.max(window.scrollY + 8, Math.min(e.pageY, window.scrollY + window.innerHeight - h - 8)) + 'px';
+}
+document.addEventListener('contextmenu', e => { if (!e.target.closest || !e.target.closest('#paneL tr[data-no]')) closeMenus(); });
 function bulk(list, fn, name) {
   let ok = 0; list.forEach(o => { if (fn(o)) ok++; });
   save(); if (OS.cur && OS.cur.no) { const c = db.orders.find(o => o.no === OS.cur.no); if (c) OS.cur = clone(c); }
